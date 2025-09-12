@@ -80,6 +80,7 @@ runs:
             echo "[Case ${n}] PASS <${NODENAME}>"
             PASS=$((PASS+1))
             continue
+          fi
           if grep -q "Timeout" "$OUT"; then
             echo "[Case ${n}] Time Limit Exceeded <${NODENAME}>"
           elif [ -f "$XML" ] && grep -q "Timeout" "$XML"; then
