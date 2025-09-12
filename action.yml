@@ -35,13 +35,12 @@ runs:
       shell: bash
       run: |
         : 테스트 수집
-        set -euo pipefail
 
         cp ./*.py "$HOME/workdir/"
         cp "${{ inputs.module-path }}/test_cases.py" "$HOME/workdir/"
 
         cd "$HOME/workdir"
-        pytest test_cases.py --collect-only --quiet | head > ./nodeids.txt
+        pytest test_cases.py --collect-only --quiet | head -n -2 > ./nodeids.txt
         TOTAL=$(wc -l < ./nodeids.txt)
 
         echo "TOTAL=$TOTAL" >> "$GITHUB_ENV"
