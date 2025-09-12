@@ -38,14 +38,13 @@ runs:
       shell: bash
       run: |
         set -euo pipefail
+        ls -la
+        cp ./*.py "$HOME/workdir/"
         cp "${{ inputs.module-path }}/test_cases.py" "$HOME/workdir/"
-        pytest "$HOME/workdir/test_cases.py" --collect-only --quiet
-        pytest "$HOME/workdir/test_cases.py" --collect-only --quiet | head
         pytest "$HOME/workdir/test_cases.py" --collect-only --quiet | head > "$HOME/workdir/nodeids.txt"
-        ls "$HOME/workdir"
-        cat "$HOME/workdir/nodeids.txt"
         TOTAL=$(wc -l < "$HOME/workdir/nodeids.txt")
         echo "TOTAL=$TOTAL" >> "$GITHUB_ENV"
+        echo "테스트 총 $TOTAL개"
 
     - name: 채점
       id: grade
