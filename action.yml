@@ -28,6 +28,8 @@ runs:
         : 채점기 준비
         set -euo pipefail
 
+        pip install pytest
+
         mkdir -p "$HOME/workdir"
         chmod 777 "$HOME/workdir"
 
