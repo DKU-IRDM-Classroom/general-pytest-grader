@@ -36,6 +36,7 @@ runs:
       shell: bash
       run: |
         : 테스트 수집
+        set -euo pipefail
 
         cp ./*.py "$HOME/workdir/"
         cp "${{ inputs.module-path }}/test_cases.py" "$HOME/workdir/"
