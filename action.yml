@@ -60,6 +60,8 @@ runs:
         for n in $(seq 1 ${{ env.TOTAL }}); do
 
           NODEID=$(sed -n "${n}p" ./nodeids.txt | xargs)
+          OUT="./pytest_${n}.log"
+          XML="./report_${n}.xml"
 
           set +e
           pytest "$NODEID" \
@@ -68,21 +70,22 @@ runs:
             --disable-warnings \
             --timeout=${{ inputs.time-limit }} \
             --timeout-method=thread \
-            --junitxml=report.xml \
-            >/dev/null 2>&1
+            --junitxml="$XML" \
+            >"$OUT" 2>&1
           RC=$?
           set -e
 
           NODENAME="${NODEID##*::}"
           if [ "$RC" -eq 0 ]; then
-            echo "[Case ${n}] 테스트 성공 (PASS) <${NODENAME}>"
+            echo "[Case ${n}] PASS <${NODENAME}>"
             PASS=$((PASS+1))
+            continue
+          if grep -q "Timeout" "$OUT"; then
+            echo "[Case ${n}] Time Limit Exceeded <${NODENAME}>"
+          if [ -f "$XML" ] && grep -q "Timeout" "$XML"; then
+            echo "[Case ${n}] Time Limit Exceeded <${NODENAME}>"
           else
-            if [ -f ./report.xml ] && grep -q "Timeout" ./report.xml; then
-              echo "[Case ${n}] 시간 초과 (TLE) <${NODENAME}>"
-            else
-              echo "[Case ${n}] 테스트 실패 (FAIL) <${NODENAME}>"
-            fi
+            echo "[Case ${n}] FAIL <${NODENAME}>"
           fi
 
         done
