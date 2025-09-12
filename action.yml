@@ -82,7 +82,7 @@ runs:
             continue
           if grep -q "Timeout" "$OUT"; then
             echo "[Case ${n}] Time Limit Exceeded <${NODENAME}>"
-          if [ -f "$XML" ] && grep -q "Timeout" "$XML"; then
+          elif [ -f "$XML" ] && grep -q "Timeout" "$XML"; then
             echo "[Case ${n}] Time Limit Exceeded <${NODENAME}>"
           else
             echo "[Case ${n}] FAIL <${NODENAME}>"
