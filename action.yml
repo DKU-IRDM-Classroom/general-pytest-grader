@@ -38,11 +38,14 @@ runs:
       shell: bash
       run: |
         set -euo pipefail
-        ls -la
+
         cp ./*.py "$HOME/workdir/"
         cp "${{ inputs.module-path }}/test_cases.py" "$HOME/workdir/"
-        pytest "$HOME/workdir/test_cases.py" --collect-only --quiet | head > "$HOME/workdir/nodeids.txt"
+
+        cd "$HOME/workdir"
+        pytest test_cases.py --collect-only --quiet | head > "$HOME/workdir/nodeids.txt"
         TOTAL=$(wc -l < "$HOME/workdir/nodeids.txt")
+
         echo "TOTAL=$TOTAL" >> "$GITHUB_ENV"
         echo "테스트 총 $TOTAL개"
 
@@ -91,21 +94,22 @@ runs:
           fi
           docker rm -f "$NAME" >/dev/null 2>&1 || true
 
+          NODENAME="${NODEID##*::}"
           if [ "$OOM" = "true" ]; then
-            echo "[Case ${n}] 메모리 초과 (MLE) <$NODEID>"
+            echo "[Case ${n}] 메모리 초과 (MLE) <$NODENAME>"
             continue
           elif [ "$EXIT" -eq 124 ]; then
-            echo "[Case ${n}] 시간 초과 (TLE) <$NODEID>"
+            echo "[Case ${n}] 시간 초과 (TLE) <$NODENAME>"
             continue
           elif [ ${RC} -ne 0 ] || [ ${EXIT} -ne 0 ]; then
-            echo "[Case ${n}] 테스트 실패 (FAIL) <$NODEID>"
+            echo "[Case ${n}] 테스트 실패 (FAIL) <$NODENAME>"
             continue
           else
-            echo "[Case ${n}] 테스트 성공 (PASS) <$NODEID>"
+            echo "[Case ${n}] 테스트 성공 (PASS) <$NODENAME>"
             PASS=$((PASS+1))
           fi
 
         done
 
-        echo "::notice::점수 ${PASS}/${{ inputs.total-cases }}"
+        echo "::notice::점수 ${PASS}/${{ env.TOTAL }}"
         echo "::notice title=Autograding report::{\"totalPoints\":${PASS},\"maxPoints\":${{ env.TOTAL }}}"
