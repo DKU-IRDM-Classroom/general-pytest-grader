@@ -39,7 +39,7 @@ runs:
       run: |
         set -euo pipefail
         cp "${{ inputs.module-path }}/test_cases.py" "$HOME/workdir/"
-        pytest "$HOME/workdir/test_cases.py" --collect-only --quiet | head > "$HOME/workdir/nodeids.index"
+        pytest "$HOME/workdir/test_cases.py" --collect-only --quiet | head > "$HOME/workdir/nodeids.txt"
         TOTAL=$(wc -l < "$HOME/workdir/nodeids.txt")
         echo "TOTAL=$TOTAL" >> "$GITHUB_ENV"
 
