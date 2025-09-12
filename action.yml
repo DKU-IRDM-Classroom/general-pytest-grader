@@ -32,7 +32,7 @@ runs:
 
         if [ -f "${{ inputs.module-path }}/requirements.txt" ]; then
           cp "${{ inputs.module-path }}/requirements.txt" ./
-          pip install -qq --disable-pip-version-check -r ./requirements.txt
+          pip install -r ./requirements.txt
         fi
 
     - name: 테스트 수집
