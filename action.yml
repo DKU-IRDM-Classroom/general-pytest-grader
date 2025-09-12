@@ -28,7 +28,7 @@ runs:
         : 채점기 준비
         set -euo pipefail
 
-        pip install pytest
+        python -m pip install -qq --disable-pip-version-check pytest
 
         mkdir -p "$HOME/workdir"
         chmod 777 "$HOME/workdir"
@@ -39,7 +39,8 @@ runs:
       run: |
         set -euo pipefail
         cp "${{ inputs.module-path }}/test_cases.py" "$HOME/workdir/"
-        ls "$HOME/workdir"
+        pytest "$HOME/workdir/test_cases.py" --collect-only --quiet
+        pytest "$HOME/workdir/test_cases.py" --collect-only --quiet | head
         pytest "$HOME/workdir/test_cases.py" --collect-only --quiet | head > "$HOME/workdir/nodeids.txt"
         ls "$HOME/workdir"
         cat "$HOME/workdir/nodeids.txt"
