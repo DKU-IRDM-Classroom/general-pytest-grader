@@ -21,11 +21,11 @@ runs:
   using: "composite"
   steps:
 
-    - name: 채점기 준비
+    - name: 환경 준비
       id: prepare-grader
       shell: bash
       run: |
-        : 채점기 준비
+        : 환경 준비
         set -euo pipefail
 
         python -m pip install -qq --disable-pip-version-check pytest
@@ -37,6 +37,7 @@ runs:
       id: collect-tests
       shell: bash
       run: |
+        : 테스트 수집
         set -euo pipefail
 
         cp ./*.py "$HOME/workdir/"
@@ -47,7 +48,6 @@ runs:
         TOTAL=$(wc -l < "$HOME/workdir/nodeids.txt")
 
         echo "TOTAL=$TOTAL" >> "$GITHUB_ENV"
-        echo "테스트 총 $TOTAL개"
 
     - name: 채점
       id: grade
@@ -82,7 +82,7 @@ runs:
             -w /workdir \
             -e NODEID="$NODEID" \
             ubuntu:latest \
-            bash -lc 'timeout -k 1s ${{ inputs.time-limit }}s pytest -q "$NODEID" --disable-warnings >/dev/null' 2>/dev/null
+            bash -lc 'timeout -k 1s ${{ inputs.time-limit }}s pytest "$NODEID"'
           RC=$?
           set -e
 
