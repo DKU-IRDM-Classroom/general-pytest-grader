@@ -1,0 +1,105 @@
+name: "general-pytest-grader"
+description: "General PyTest Grader"
+author: "DKU-IRDM-Classroom"
+
+inputs:
+  module-path:
+    required: true
+  time-limit:
+    required: false
+    default: 2
+  memory-limit:
+    required: false
+    default: '256m'
+
+permissions:
+  contents: read
+  actions: read
+  checks: write
+
+runs:
+  using: "composite"
+  steps:
+
+    - name: 채점기 준비
+      id: prepare-grader
+      shell: bash
+      run: |
+        : 채점기 준비
+        set -euo pipefail
+
+        mkdir -p "$HOME/workdir"
+        chmod 777 "$HOME/workdir"
+
+    - name: 테스트 수집
+      id: collect-tests
+      shell: bash
+      run: |
+        set -euo pipefail
+        pytest --collect-only --quiet | head > "$HOME/workdir/nodeids.index"
+        TOTAL=$(wc -l < "$HOME/workdir/nodeids.txt")
+        echo "TOTAL=$TOTAL" >> "$GITHUB_ENV"
+
+    - name: 채점
+      id: grade
+      shell: bash
+      run: |
+        : 채점
+        set -euo pipefail
+
+        docker pull -q ubuntu:latest >/dev/null
+        docker run --rm ubuntu:latest bash -lc 'echo "grader ready"'
+
+        PASS=0
+
+        for n in $(seq 1 ${{ env.TOTAL }}); do
+
+          NAME="grader-${n}-$$"
+          NODEID=$(sed -n "${n}p" "$HOME/workdir/nodeids.txt" | xargs)
+
+          set +e
+          docker run \
+            --name "$NAME" \
+            --network none \
+            --cpus "1.0" \
+            --memory "${{ inputs.memory-limit }}" \
+            --memory-swap "${{ inputs.memory-limit }}" \
+            --pids-limit "128" \
+            --cap-drop ALL \
+            --security-opt no-new-privileges \
+            --tmpfs /tmp:rw,nosuid,nodev,noexec,size=64m \
+            -u "$(id -u):$(id -g)" \
+            -v "$HOME/workdir":/workdir \
+            -w /workdir \
+            -e NODEID="$NODEID" \
+            ubuntu:latest \
+            bash -lc 'timeout -k 1s ${{ inputs.time-limit }}s pytest -q "$NODEID" --disable-warnings >/dev/null' 2>/dev/null
+          RC=$?
+          set -e
+
+          OOM=false
+          EXIT=0
+          if docker inspect "$NAME" >/dev/null 2>&1; then
+            OOM=$(docker inspect -f '{{.State.OOMKilled}}' "$NAME")
+            EXIT=$(docker inspect -f '{{.State.ExitCode}}' "$NAME")
+          fi
+          docker rm -f "$NAME" >/dev/null 2>&1 || true
+
+          if [ "$OOM" = "true" ]; then
+            echo "[Case ${n}] 메모리 초과 (MLE) <$NODEID>"
+            continue
+          elif [ "$EXIT" -eq 124 ]; then
+            echo "[Case ${n}] 시간 초과 (TLE) <$NODEID>"
+            continue
+          elif [ ${RC} -ne 0 ] || [ ${EXIT} -ne 0 ]; then
+            echo "[Case ${n}] 테스트 실패 (FAIL) <$NODEID>"
+            continue
+          else
+            echo "[Case ${n}] 테스트 성공 (PASS) <$NODEID>"
+            PASS=$((PASS+1))
+          fi
+
+        done
+
+        echo "::notice::점수 ${PASS}/${{ inputs.total-cases }}"
+        echo "::notice title=Autograding report::{\"totalPoints\":${PASS},\"maxPoints\":${{ env.TOTAL }}}"
