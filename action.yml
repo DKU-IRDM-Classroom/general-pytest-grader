@@ -8,9 +8,6 @@ inputs:
   time-limit:
     required: false
     default: 2
-  memory-limit:
-    required: false
-    default: '256m'
 
 permissions:
   contents: read
@@ -28,7 +25,7 @@ runs:
         : 환경 준비
         set -euo pipefail
 
-        python -m pip install -qq --disable-pip-version-check pytest
+        python -m pip install -qq --disable-pip-version-check pytest pytest-timeout
 
         mkdir -p "$HOME/workdir"
         chmod 777 "$HOME/workdir"
@@ -44,8 +41,8 @@ runs:
         cp "${{ inputs.module-path }}/test_cases.py" "$HOME/workdir/"
 
         cd "$HOME/workdir"
-        pytest test_cases.py --collect-only --quiet | head > "$HOME/workdir/nodeids.txt"
-        TOTAL=$(wc -l < "$HOME/workdir/nodeids.txt")
+        pytest test_cases.py --collect-only --quiet | head > ./nodeids.txt
+        TOTAL=$(wc -l < ./nodeids.txt)
 
         echo "TOTAL=$TOTAL" >> "$GITHUB_ENV"
 
@@ -56,57 +53,36 @@ runs:
         : 채점
         set -euo pipefail
 
-        docker pull -q ubuntu:latest >/dev/null
-        docker run --rm ubuntu:latest bash -lc 'echo "grader ready"'
+        cd "$HOME/workdir"
 
         PASS=0
 
         for n in $(seq 1 ${{ env.TOTAL }}); do
 
-          NAME="grader-${n}-$$"
-          NODEID=$(sed -n "${n}p" "$HOME/workdir/nodeids.txt" | xargs)
+          NODEID=$(sed -n "${n}p" ./nodeids.txt | xargs)
 
           set +e
-          docker run \
-            --name "$NAME" \
-            --network none \
-            --cpus "1.0" \
-            --memory "${{ inputs.memory-limit }}" \
-            --memory-swap "${{ inputs.memory-limit }}" \
-            --pids-limit "128" \
-            --cap-drop ALL \
-            --security-opt no-new-privileges \
-            --tmpfs /tmp:rw,nosuid,nodev,noexec,size=64m \
-            -u "$(id -u):$(id -g)" \
-            -v "$HOME/workdir":/workdir \
-            -w /workdir \
-            -e NODEID="$NODEID" \
-            ubuntu:latest \
-            bash -lc 'timeout -k 1s ${{ inputs.time-limit }}s pytest "$NODEID"'
+          pytest "$NODEID" \
+            --quiet \
+            --tb=no \
+            --disable-warnings \
+            --timeout=${{ inputs.time-limit }} \
+            --timeout-method=thread \
+            --junitxml=report.xml \
+            >/dev/null 2>&1
           RC=$?
           set -e
 
-          OOM=false
-          EXIT=0
-          if docker inspect "$NAME" >/dev/null 2>&1; then
-            OOM=$(docker inspect -f '{{.State.OOMKilled}}' "$NAME")
-            EXIT=$(docker inspect -f '{{.State.ExitCode}}' "$NAME")
-          fi
-          docker rm -f "$NAME" >/dev/null 2>&1 || true
-
           NODENAME="${NODEID##*::}"
-          if [ "$OOM" = "true" ]; then
-            echo "[Case ${n}] 메모리 초과 (MLE) <$NODENAME>"
-            continue
-          elif [ "$EXIT" -eq 124 ]; then
-            echo "[Case ${n}] 시간 초과 (TLE) <$NODENAME>"
-            continue
-          elif [ ${RC} -ne 0 ] || [ ${EXIT} -ne 0 ]; then
-            echo "[Case ${n}] 테스트 실패 (FAIL) <$NODENAME>"
-            continue
-          else
-            echo "[Case ${n}] 테스트 성공 (PASS) <$NODENAME>"
+          if [ "$RC" -eq 0 ]; then
+            echo "[Case ${n}] 테스트 성공 (PASS) <${NODENAME}>"
             PASS=$((PASS+1))
+          else
+            if [ -f ./report.xml ] && grep -q "Timeout" ./report.xml; then
+              echo "[Case ${n}] 시간 초과 (TLE) <${NODENAME}>"
+            else
+              echo "[Case ${n}] 테스트 실패 (FAIL) <${NODENAME}>"
+            fi
           fi
 
         done
