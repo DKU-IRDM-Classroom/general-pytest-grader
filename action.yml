@@ -36,7 +36,8 @@ runs:
       shell: bash
       run: |
         set -euo pipefail
-        pytest --collect-only --quiet | head > "$HOME/workdir/nodeids.index"
+        cp "${{ inputs.module-path }}/test_cases.py" "$HOME/workdir/"
+        pytest "$HOME/workdir/test_cases.py" --collect-only --quiet | head > "$HOME/workdir/nodeids.index"
         TOTAL=$(wc -l < "$HOME/workdir/nodeids.txt")
         echo "TOTAL=$TOTAL" >> "$GITHUB_ENV"
 
