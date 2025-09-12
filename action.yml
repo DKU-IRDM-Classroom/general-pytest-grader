@@ -25,10 +25,11 @@ runs:
         : 환경 준비
         set -euo pipefail
 
-        python -m pip install -qq --disable-pip-version-check pytest pytest-timeout
-
         mkdir -p "$HOME/workdir"
         chmod 777 "$HOME/workdir"
+
+        cp "${{ inputs.module-path }}/requirements.txt" ./
+        pip install -qq --disable-pip-version-check -r requirements.txt
 
     - name: 테스트 수집
       id: collect-tests
@@ -40,8 +41,6 @@ runs:
         cp "${{ inputs.module-path }}/test_cases.py" "$HOME/workdir/"
 
         cd "$HOME/workdir"
-        pytest test_cases.py --collect-only --quiet
-        pytest test_cases.py --collect-only --quiet | head -n -2
         pytest test_cases.py --collect-only --quiet | head -n -2 > ./nodeids.txt
         TOTAL=$(wc -l < ./nodeids.txt)
 
